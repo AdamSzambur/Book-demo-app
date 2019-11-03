@@ -12,13 +12,19 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultMatcher;
+
+
+import java.util.Arrays;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.when;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(SpringExtension.class)
 @WebMvcTest(BookController.class)
@@ -57,5 +63,52 @@ public class BookControllerTest {
         assertThat(argumentCaptor.getValue().getAuthor(), is("Duke"));
         assertThat(argumentCaptor.getValue().getIsbn(), is("123"));
         assertThat(argumentCaptor.getValue().getTitle(), is("Java 11"));
+    }
+
+
+    @Test
+    public void allBooksEndPointShouldReturnTwoBooks() throws Exception {
+
+        when(bookService.getAllBooks()).thenReturn(Arrays.asList(createBook(1L,"Java 11", "Duke","123")
+                , createBook(2L, "Java 8", "Adam", "1234")));
+
+        this.mockMvc.perform(get("/api/books"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/json"))
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].title",is("Java 11")))
+                .andExpect(jsonPath("$[0].author",is("Duke")))
+                .andExpect(jsonPath("$[0].isbn",is("123")))
+                .andExpect(jsonPath("$[0].id",is(1)));
+    }
+
+    @Test
+    public void getBookWithIdOneShouldReturnBook() throws Exception {
+        when(bookService.getBookById(1L)).thenReturn(createBook(1L,"Java 11", "Duke","123"));
+
+        this.mockMvc.perform(get("/api/books/1"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/json"))
+                .andExpect(jsonPath("$.title",is("Java 11")))
+                .andExpect(jsonPath("$.author",is("Duke")))
+                .andExpect(jsonPath("$.isbn",is("123")))
+                .andExpect(jsonPath("$.id",is(1)));
+    }
+
+    @Test
+    public void getBookWithUnknownIdShouldReturn404() throws Exception {
+        when(bookService.getBookById(42L)).thenThrow(new BookNotFoundException("Book with id '42' is not found"));
+
+        this.mockMvc.perform(get("/api/books/42"))
+                .andExpect(status().isNotFound());
+    }
+
+    private Book createBook(Long id, String title, String author, String isbn) {
+        Book book = new Book();
+        book.setIsbn(isbn);
+        book.setAuthor(author);
+        book.setTitle(title);
+        book.setId(id);
+        return book;
     }
 }

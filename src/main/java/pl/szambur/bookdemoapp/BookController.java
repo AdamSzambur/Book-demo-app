@@ -9,6 +9,7 @@ import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.validation.Valid;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/books")
@@ -29,7 +30,17 @@ public class BookController {
         headers.setLocation(uriComponents.toUri());
 
         return new ResponseEntity<Void>(headers, HttpStatus.CREATED);
-
     }
 
+
+    @GetMapping
+    public ResponseEntity<List<Book>> getAllBooks() {
+        return ResponseEntity.ok(bookService.getAllBooks());
+    }
+
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Book> getBookById(@PathVariable Long id) {
+        return  ResponseEntity.ok(bookService.getBookById(id));
+    }
 }
