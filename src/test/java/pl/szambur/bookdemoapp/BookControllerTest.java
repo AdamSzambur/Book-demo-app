@@ -12,7 +12,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultMatcher;
 
 
 import java.util.Arrays;
@@ -20,10 +19,10 @@ import java.util.Arrays;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(SpringExtension.class)
@@ -40,7 +39,7 @@ public class BookControllerTest {
     private BookService bookService;
 
     @Captor
-    private ArgumentCaptor<BookRequest> argumentCaptor;
+    private ArgumentCaptor<BookRequest> bookRequestArgumentCaptor;
 
 
     @Test
@@ -51,7 +50,7 @@ public class BookControllerTest {
         bookRequest.setIsbn("123");
 
 
-        when (bookService.createNewBook(argumentCaptor.capture())).thenReturn(1L);
+        when (bookService.createNewBook(bookRequestArgumentCaptor.capture())).thenReturn(1L);
 
         this.mockMvc.perform(post("/api/books")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -60,9 +59,9 @@ public class BookControllerTest {
                 .andExpect(header().exists("Location"))
                 .andExpect(header().string("Location","http://localhost/api/books/1"));
 
-        assertThat(argumentCaptor.getValue().getAuthor(), is("Duke"));
-        assertThat(argumentCaptor.getValue().getIsbn(), is("123"));
-        assertThat(argumentCaptor.getValue().getTitle(), is("Java 11"));
+        assertThat(bookRequestArgumentCaptor.getValue().getAuthor(), is("Duke"));
+        assertThat(bookRequestArgumentCaptor.getValue().getIsbn(), is("123"));
+        assertThat(bookRequestArgumentCaptor.getValue().getTitle(), is("Java 11"));
     }
 
 
@@ -102,6 +101,51 @@ public class BookControllerTest {
         this.mockMvc.perform(get("/api/books/42"))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    public void updateBookWithKnowIdShodUpdateBook() throws Exception {
+        BookRequest bookRequest = new BookRequest();
+        bookRequest.setAuthor("Duke");
+        bookRequest.setTitle("Java 12");
+        bookRequest.setIsbn("123");
+
+        when(bookService.updateBook(eq(1L),bookRequestArgumentCaptor.capture())).thenReturn(createBook(1L, "Java 12"
+                , "Duke" , "123"));
+
+        this.mockMvc
+                .perform(put("/api/books/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bookRequest)))
+                .andExpect(content().contentType("application/json"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title",is("Java 12")))
+                .andExpect(jsonPath("$.author",is("Duke")))
+                .andExpect(jsonPath("$.isbn",is("123")))
+                .andExpect(jsonPath("$.id",is(1)));
+
+        assertThat(bookRequestArgumentCaptor.getValue().getAuthor(), is("Duke"));
+        assertThat(bookRequestArgumentCaptor.getValue().getIsbn(), is("123"));
+        assertThat(bookRequestArgumentCaptor.getValue().getTitle(), is("Java 12"));
+    }
+
+    @Test
+    public void updateBookWithUnknownIdShouldReturn404() throws Exception {
+        BookRequest bookRequest = new BookRequest();
+        bookRequest.setAuthor("Duke");
+        bookRequest.setTitle("Java 12");
+        bookRequest.setIsbn("123");
+
+        when(bookService.updateBook(eq(42L), bookRequestArgumentCaptor.capture())).thenThrow(new BookNotFoundException("Book with id '42' is not found"));
+
+        this.mockMvc
+                .perform(put("/api/books/42")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bookRequest)))
+                .andExpect(status().isNotFound());
+    }
+
+
+
 
     private Book createBook(Long id, String title, String author, String isbn) {
         Book book = new Book();

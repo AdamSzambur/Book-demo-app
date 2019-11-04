@@ -1,8 +1,11 @@
 package pl.szambur.bookdemoapp;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.transaction.Transactional;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,5 +37,25 @@ public class BookService {
         }
 
         return requestBook.get();
+    }
+
+    @Transactional
+    public Book updateBook(Long id, BookRequest bookRequest) {
+
+        Optional<Book> bookFromDataBase = bookRepository.findById(id);
+
+        if (!bookFromDataBase.isPresent()) {
+            throw new BookNotFoundException(String.format("Book with id '%s' is not found",id));
+        }
+
+        Book bookToUpdate = bookFromDataBase.get();
+        bookToUpdate.setTitle(bookRequest.getTitle());
+        bookToUpdate.setAuthor(bookRequest.getAuthor());
+        bookToUpdate.setIsbn(bookRequest.getIsbn());
+        return bookToUpdate;
+    }
+
+    public void deleteBookById(Long id) {
+        bookRepository.deleteById(id);
     }
 }
